@@ -1,0 +1,344 @@
+'''''''''''''''''''''''''''''''''''''''''''''''START GLOBAL VARIABLES'''''''''''''''''''''''''''''''''''''''''
+
+Dim DIYDialog, MainDialog As Object
+Dim part_lbox As Object
+Dim setname_ctr As Object
+Dim oBar As Object    					' Generated status bar at bottom of window 
+
+Dim Set_Name As String
+
+Dim Hor_Offset, Part_Num As Integer
+Dim im_pos As Integer
+Dim word_list_size As Integer			' Size of Word arrays a() and b()
+Dim passage_counter As Integer			' Counter for which passage is being read from
+Dim passage_word_counter
+
+
+Dim oFrame, p as long 
+
+Dim a(100000) As String
+Dim b(100000) As Integer
+Dim stop_list(150) As String
+Dim stop_list_counter(150) As Integer
+Dim stop_list_flag As Integer
+Dim stop_list_size As Integer			' Size of Stop List (the, a, an, in, about, etc)
+	
+'''''''''''''''''''''''''''''''''''''''''''''''END GLOBAL VARIABLES'''''''''''''''''''''''''''''''''''''''''''	
+		
+Sub Passages_From_File_to_DB() 'Yanks passages out of files and puts them into "Passages" table
+
+	GlobalScope.DialogLibraries.LoadLibrary("Standard")
+	MainDialog = CreateUnoDialog(GlobalScope.DialogLibraries.Standard.Dialog2)
+	MainDialog.Execute()
+	
+End Sub
+
+Sub Handler(Set_Name, Part_Num, Hor_Offset) 'Does all the heavy lifting for the above routine
+
+	Dim mArgs(2) as New com.sun.star.beans.PropertyValue
+		mArgs(0).Name = "ReadOnly"
+		mArgs(0).Value = False
+		mArgs(1).Name = "MacroExecutionMode"
+		mArgs(1).Value = 4
+		mArgs(2).Name = "AsTemplate"
+		mArgs(2).Value = FALSE
+	
+	Dim oDesktop As Object
+	Dim oComponents As Object
+	Dim oDocs As Object
+	Dim oDoc As Object 
+	Dim doc1 As Object
+	Dim doc2
+	Dim url as string
+		url = "private:factory/swriter"
+	Dim oTables
+	Dim oTable
+	Dim oCell1, oCell2, ocCell3, oCell4, oCell5
+	Dim oString1, oString2, oString3, oString31, oString32, oString33, oString34, oString4, oString5 as String
+	Dim oText    'Text object for the current object
+	Dim oVCursor 'Current view cursor
+	
+	Dim i as Integer
+		i = 0
+		
+	Dim dbContext 
+	Dim dataSource 
+    Dim connection 
+	Dim stmt 
+	Dim dest 
+	
+	Dim Passage_Rating, CA_Rating, IA1_Rating, IA2_Rating, IA3_Rating
+		
+	dbContext  = CreateUnoService("com.sun.star.sdb.DatabaseContext") 
+	dataSource = dbContext.getByName("TEPS")  ' This is an OOo 2.0 Base HSQL registered data source 
+	connection = dataSource.getConnection("", "") 
+	dest = createUnoService("com.sun.star.sdb.RowSet")
+	
+	With dest 
+		.activeConnection = connection 
+	    .CommandType = com.sun.star.sdb.CommandType.COMMAND 
+	    .Command = "SELECT * FROM ""Passages""" 
+	    .execute 
+	    .afterLast
+	End With
+
+	doc1 = ThisComponent '.CurrentController.Frame.ContainerWindow 
+	
+	oTables = ThisComponent.getTextTables()
+
+	Dim len3, len31,len32,len33 as Integer
+	Dim B_Offset,C_Offset,D_Offset as Integer
+
+	Dim LowBound, UpBound As Integer
+	
+	If (Part_Num = 1) Then
+		LowBound = 1
+		UpBound = 16
+	ElseIf (Part_Num = 2) Then 
+		LowBound = 17
+		UpBound = 26
+	Else
+		LowBound = 27
+		UpBound = 40
+	EndIf
+	
+	oBar = ThisComponent.CurrentController.StatusIndicator 
+	oBar.start("Started...", 100)
+
+
+	For Arg1 = LowBound To UpBound
+	
+	    oBar.Value = (Arg1-LowBound) * 100 / (UpBound-LowBound)
+  		oBar.Text = "Inserting set " & Set_Name & " passage " & Arg1 & " to database."
+	
+		ThisComponent.CurrentController.Frame.ContainerWindow.toFront()
+		ThisComponent.CurrentController.Frame.Activate()
+		oTable = oTables.getByIndex(5+Arg1)
+	
+		oCell1 = oTable.getCellByPosition(Hor_Offset, 1)
+		oString1 = oCell1.getString()	
+		
+		If (Arg1 > 16) AND (Arg1 < 38) Then
+			oCell2 = oTable.getCellByPosition(Hor_Offset, 3)
+			oString2 = oCell2.getString()		
+		Else
+			oString2 = ""
+		EndIf
+		
+		If (Arg1 > 37) Then
+			oString3 = ""
+			oString31 = ""
+			oString32 = ""
+			oString33 = ""
+			oString34 = ""
+									
+			oCell2 = oTable.getCellByPosition(Hor_Offset*3+2, 2)
+			Passage_Rating = oCell2.getString()
+			oCell2 = oTable.getCellByPosition(Hor_Offset*3+2, 3)
+			CA_Rating = oCell2.getString()
+			
+		Else 
+			If (Arg1 > 16) Then
+				Vert_Offset = 0
+			Else
+				Vert_Offset = 2
+			EndIf
+				
+			oCell3 = oTable.getCellByPosition(Hor_Offset, 5-Vert_Offset)
+			oString3 = oCell3.getString()
+			len3 = Len(oString3)
+			
+			A_Offset = InStr(oString3, "(a)")
+			B_Offset = InStr(oString3, "(b)")
+			C_Offset = InStr(oString3, "(c)")
+			D_Offset = InStr(oString3, "(d)")
+			
+			
+			If (A_Offset > 0 AND (A_Offset+5) < Len(oString3) ) Then
+				oString31 = Mid(oString3, A_Offset+4, B_Offset-5)	
+			Else
+				oString31 = ""
+			EndIf
+			
+			If (B_Offset > 0 AND (B_Offset+5) < Len(oString3) ) Then
+				oString32 = Mid(oString3, B_Offset+4, C_Offset-B_Offset-5)		
+			Else
+				oString32 = ""
+			EndIf
+			
+			If (C_Offset > 0 AND (C_Offset+5) < Len(oString3) ) Then
+				oString33 = Mid(oString3, C_Offset+4, D_Offset-C_Offset-5)	
+			Else
+				oString33 = ""
+			EndIf
+		
+			If (D_Offset > 0 AND (D_Offset+3) < Len(oString3) ) Then
+				oString34 = Right(oString3, Len(oString3)-D_Offset-3) 	
+			Else
+				oString34 = ""
+			EndIf
+			
+			oCell2 = oTable.getCellByPosition(Hor_Offset*3+2, 6-Vert_Offset)
+			Passage_Rating = oCell2.getString()
+			oCell2 = oTable.getCellByPosition(Hor_Offset*3+2, 7-Vert_Offset)
+			CA_Rating = oCell2.getString()
+			oCell2 = oTable.getCellByPosition(Hor_Offset*3+2, 8-Vert_Offset)
+			IA1_Rating = oCell2.getString()
+			oCell2 = oTable.getCellByPosition(Hor_Offset*3+2, 9-Vert_Offset)
+			IA2_Rating = oCell2.getString()
+			oCell2 = oTable.getCellByPosition(Hor_Offset*3+2, 10-Vert_Offset)
+			IA3_Rating = oCell2.getString()
+			
+		 	Dim temp_string As String
+		 	Dim temp_rating As Integer
+		 	
+			If InStr(oString32, "@") Then
+				temp_string = oString31
+				oString31 = oString32
+				oString32 = temp_string
+				
+				temp_rating = CA_Rating
+				CA_Rating = IA1_Rating
+				IA1_Rating = temp_rating
+				
+			ElseIf InStr(oString33, "@") Then
+				temp_string = oString31
+				oString31 = oString33
+				oString33 = temp_string	
+				
+				temp_rating = CA_Rating
+				CA_Rating = IA2_Rating
+				IA2_Rating = temp_rating
+				
+			ElseIf InStr(oString34, "@") Then
+				temp_string = oString31
+				oString31 = oString34
+				oString34 = temp_string
+				
+				temp_rating = CA_Rating
+				CA_Rating = IA3_Rating
+				IA3_Rating = temp_rating							
+			EndIf
+				
+			If InStr(oString31, "@") Then
+				oString31 = Left(oString31, InStr(oString31, "@")-1)
+			EndIf
+			
+			oString31 = Trim(oString31)	
+				
+				
+		End If
+	
+        With dest
+          	.moveToInsertRow()
+          	.updateNull(1) 
+		  	.updateString(2, Set_Name) 
+	      	.updateInt(3, Arg1) 
+		  	.updateString(4, "Reading") 
+		  	.updateString(5, oString1)
+		  	.updateString(6, oString2) 
+		  	.updateString(7, oString3)
+		  	.updateString(8, oString31) 
+		  	.updateString(9, oString32) 
+		  	.updateString(10, oString33) 
+		  	.updateString(11, oString34) 
+		  	.updateInt(12, Passage_Rating) 
+		  	.updateInt(13, CA_Rating) 
+		  	.updateInt(14, IA1_Rating) 
+		  	.updateInt(15, IA2_Rating) 
+		  	.updateInt(16, IA3_Rating)
+		  	.updateString(17, "") 
+         	.insertRow()
+      	End With
+		
+	Next Arg1
+	
+		oBar.Text = "FINISHED"
+	
+End Sub
+
+Sub DoByDirectory()
+
+	Dim oooDoc, pos, sssDocURL
+	Dim imitation_lbox, tempint
+	Dim Url5 as String
+	Dim Doc5
+
+	MainDialog.endExecute()
+	
+	files = GetFileNames("/home/luscious/Desktop/TEPS_DB/Files/","*.doc")
+	
+	For i = 1 to UBound(files)
+		Url5 = convertToUrl(files(0) & files(i))
+		oooDoc = starDeskTop.loadComponentFromUrl (Url5, "_blank", 0, Array())
+		sssDocURL = oooDoc.getURL()
+		
+		pos = InStr(sssDocURL, "M_")	
+		Set_Name = Mid(sssDocURL, pos, 6)
+		
+		pos = InStr(sssDocURL, "Part")
+		pos =  Mid(sssDocURL, pos+4, 1)
+		tempint = CInt(pos)
+		Part_Num = tempint
+		
+		Imitation_Num = 1
+					
+		oTables = ThisComponent.getTextTables()
+		'Print "This document contains " & oTables.getCount() & " tables"
+
+		Handler(Set_Name, Part_Num, Imitation_Num)	
+		
+		oooDoc.dispose
+		oooDoc.close
+		
+	Next i	
+
+End Sub
+
+Sub PopUp()
+
+	Dim oooDoc, pos, sssDocURL
+	Dim imitation_lbox, tempint
+	Dim Url5 as String
+	Dim Doc5
+	
+	oooDoc = ThisComponent
+	sssDocURL = oooDoc.getURL()
+
+	MainDialog.endExecute()
+	
+	DIYDialog = CreateUnoDialog(GlobalScope.DialogLibraries.Standard.Dialog1)
+	
+	setname_ctr = DIYDialog.getControl("SetName")
+	part_lbox = DIYDialog.getControl("PartListBox")
+	imitation_lbox = DIYDialog.getControl("ImitationListBox")
+	
+	pos = InStr(sssDocURL, "M_")
+	If (pos > 0) Then
+		
+		setname_ctr.Text = Mid(sssDocURL, pos, 6)
+	
+		pos = InStr(sssDocURL, "Part")
+		pos =  Mid(sssDocURL, pos+4, 1)
+		Part_Num = CInt(pos)
+		part_lbox.selectItemPos(Part_Num-1, TRUE)
+	
+	Else
+		setname_ctr.Text = "Insert Set Name"
+		part_lbox.selectItemPos(0, TRUE)
+		imitation_lbox.selectItemPos(0, TRUE)
+	End If	
+
+	DIYDialog.Execute()
+	
+	setname_ctr = DIYDialog.getControl("SetName")
+	Set_Name = setname_ctr.Text
+	
+	part_lbox = DIYDialog.getControl("PartListBox")
+	Part_Num = part_lbox.getSelectedItemPos() + 1
+	
+	Imitation_Num = imitation_lbox.getSelectedItemPos()
+
+	Handler(Set_Name, Part_Num, Imitation_Num)
+			
+End Sub

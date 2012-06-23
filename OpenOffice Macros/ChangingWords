@@ -1,0 +1,74 @@
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'ChangingWords()
+'
+'Takes Word_List table, counts all instances of words that need to get changed 
+'to base form (bears->bear), and changes modified forms to base
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub ChangingWords()
+
+	oBar = ThisComponent.CurrentController.StatusIndicator 
+	oBar.start("Getting words from dictionary", 0)
+
+	dbContext  = CreateUnoService("com.sun.star.sdb.DatabaseContext") 
+	dataSource = dbContext.getByName("TEPS")  ' This is an OOo 2.0 Base HSQL registered data source 
+	connection = dataSource.getConnection("", "")	
+	dest = createUnoService("com.sun.star.sdb.RowSet")	
+	
+	dbContext2  = CreateUnoService("com.sun.star.sdb.DatabaseContext") 
+	dataSource2 = dbContext2.getByName("TEPS")  ' This is an OOo 2.0 Base HSQL registered data source 
+	connection2 = dataSource2.getConnection("", "")	
+	dest2 = createUnoService("com.sun.star.sdb.RowSet")	
+	
+	With dest 
+		.activeConnection = connection 
+	    .CommandType = com.sun.star.sdb.CommandType.COMMAND 
+	    .Command = "SELECT * FROM ""Word_List""" 
+	    .execute 
+	    .beforeFirst()
+	End With
+	
+	passage_counter = 0
+	counter = 0
+	
+	dest.last
+	stopping_point = dest.RowCount()
+	dest.beforeFirst
+	
+	If Not IsNull(dest) Then 'RUN THIS LOOP FOR EVERY PASSAGE
+ 	 	Do While dest.next
+
+ 	 	    oBar.Value = counter * 100 / stopping_point
+  		    oBar.Text = "Word " & (counter+1) & " of " & stopping_point 
+ 	 		
+    		    newString = dest.getString(2)
+    		    thisSet = dest.getString(2)
+		    thisWord =  newString 'Left(newString, pos-1)
+				
+		    With dest2 
+			.activeConnection = connection2 
+			.CommandType = com.sun.star.sdb.CommandType.COMMAND 
+			.Command = "SELECT * FROM ""Dictionary"" WHERE ""Word""=" & Chr(39) & thisWord & Chr(39) 
+			.execute
+			resultCount = .rowCount
+		    End With	
+	
+		    dest2.first()					
+				
+		    If (resultCount = 1) Then 'RUN THIS LOOP FOR EVERY PASSAGE
+			If (dest2.getInt(3) = 1) Then
+    			    MsgBox(thisWord & " = ambiguous")
+    			ElseIf Not (dest2.getString(4) = NULL OR dest2.getString(4) = "") Then
+    			    With dest	
+		 		.updateString(2, dest2.getString(4)) 
+        			.updateRow()
+    			    End With
+			Else
+			End If
+		    Else
+			MsgBox(thisWord & " : not in dictionary.")
+		    End If			
+			counter = counter + 1
+    		Loop
+    	End If
+End Sub

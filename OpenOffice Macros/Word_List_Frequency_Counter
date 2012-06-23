@@ -1,0 +1,26 @@
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'Word_List_Frequency_Counter
+'
+'Takes all words in Word_List occuring greater than 10x and puts into RowSet 
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sub Word_List_Frequency_Counter()
+	dbContext  = CreateUnoService("com.sun.star.sdb.DatabaseContext") 
+	dataSource = dbContext.getByName("TEPS")  ' This is an OOo 2.0 Base HSQL registered data source 
+	connection = dataSource.getConnection("", "")	
+	dest = createUnoService("com.sun.star.sdb.RowSet")	
+		
+	With dest 
+	    .activeConnection = connection 
+	    .CommandType = com.sun.star.sdb.CommandType.COMMAND 
+	    .Command = "SELECT ""Word"", COUNT(*) FROM ""Word_List"" WHERE ""Set_Name"" LIKE 'M_%' GROUP BY ""Word"" HAVING COUNT(*) > 10 ORDER BY COUNT(*) DESC, ""Word"" ASC" 
+	    .execute 
+	    .beforeFirst()
+	End With
+	
+	If Not IsNull(dest) Then 'RUN THIS LOOP FOR EVERY PASSAGE
+ 	 	Do While dest.next
+ 			MsgBox(dest.getString(1) & " : " & dest.getInt(2))	 	
+		Loop
+	End If	
+End Sub

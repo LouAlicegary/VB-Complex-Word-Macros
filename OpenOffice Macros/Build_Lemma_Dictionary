@@ -1,0 +1,303 @@
+Sub Build_Lemma_Dictionary() 'Builds Dictionary from Lemma file
+
+	Dim CountFileName As String, NumberString  As String
+	Dim LongNumber As Long, iNum As Integer
+	  
+	Dim Flag, Record_Exists_Flag
+	Dim Link1_Word, Link2_Word As String
+	Dim BackString, FrontString
+	Dim CurrentLine, LastLine
+	
+	Dim dbContext As Object
+	Dim dataSource, connection, dest
+	
+	Dim i, entry
+	
+	Dim oPrepStatement, oPrepStatement2
+	
+	Dim FirstString, PreviousLine
+	
+	Dim BackStringL, BackStringR, BackString2L, BackString2R
+	Dim front_bracket_loc, back_bracket_loc, bracketed_word, bracketed_word_2, unbracketed_word, comma_loc, goodwell1, goodwell2, goodwell_flag, Ambiguous_Words_Length
+	Dim Ambiguous_Words(2000), Ambiguous_Words_Link1s(2000), Ambiguous_Words_Link2s(2000) As String
+
+	Dim oTables, oTableDescriptor, oCols, oCol
+
+	Dim IntactCurrentLine
+
+	PreviousLine = ""
+	CurrentLine = ""
+
+	CountFileName = "/home/luscious/lemma.txt"
+	LastLine = ""
+	
+	dbContext  = CreateUnoService("com.sun.star.sdb.DatabaseContext") 
+	dataSource = dbContext.getByName("TEPS")  ' This is an OOo 2.0 Base HSQL registered data source 
+	connection = dataSource.getConnection("", "") 
+	oTables = connection.getTables()
+	
+	If oTables.hasByName("Dictionary") Then
+		oTables.dropByName("Dictionary")
+    	End If
+    
+
+      
+	dest = createUnoService("com.sun.star.sdb.RowSet")
+	With dest 
+		.activeConnection = connection 
+	    .CommandType = com.sun.star.sdb.CommandType.COMMAND 
+	    .Command = "SELECT * FROM Dictionary" 
+	    .execute 
+	    .afterLast
+	End With
+	
+	'SET UP ARRAYS AND LENGTH COUNTER
+	For i = 0 To 1999
+		Ambiguous_Words(i) = ""
+		Ambiguous_Words_Link1s(i) = ""
+		Ambiguous_Words_Link2s(i) = ""		
+	Next i
+	Ambiguous_Words_Length = 0
+	
+	IntactCurrentLine = ""
+	
+	If FileExists(CountFileName) Then
+	    ON ERROR GOTO NoFile
+	    
+	    iNum = FreeFile
+		OPEN CountFileName for input as #iNum 
+     	    
+	    Do While not eof(iNum) 'WHILE STILL READING CONTENTS FROM LEMMA FILE
+  			
+  			'PreviousLine = IntactCurrentLine
+  			FrontString = ""
+  			BackString = ""
+  			Link1Word = ""
+  			Link2Word = ""
+  			
+ 			Line Input #iNum, CurrentLine 'Read line of input from file
+ 			
+ 			'IntactCurrentLine = CurrentLine 
+ 			  
+  			If (InStr(CurrentLine, "    ") > 0) Then 'WHAT TO DO WHEN TABBED LINE FOUND
+   
+    			CurrentLine = Right(CurrentLine, Len(CurrentLine)-4) 'STRIP TAB FROM LINE
+    			
+    			Do While InStr(CurrentLine, "]") 'IF TABBED DATA LINE CONTAINS BRACKETS
+    				front_bracket_loc = InStr(CurrentLine, "[")
+    				back_bracket_loc = InStr(CurrentLine, "]")
+    				
+    				FrontString = Left(CurrentLine, back_bracket_loc) 'THIS ONLY CONTAINS THE FIRST SET OF BRACKETS BUT MAY CONTAIN COMMA DELINEATED WORDS
+  					
+  					If (back_bracket_loc = Len(CurrentLine)) Then
+  						BackString = ""
+  					Else
+  						BackString = Right(CurrentLine, Len(CurrentLine)-back_bracket_loc-2) 'LEFTOVER DATA AFTER FIRST BRACKETS (MAY CONTAIN BRACKETS TOO)
+  					End If
+  					
+  					
+    				'''''PARSE BRACKETED DATA FROM FRONTSTRING
+
+    				Do While InStr(FrontString, ",") 'LOOK FOR COMMA
+    				
+    					comma_loc = InStr(FrontString, ",")
+    					front_bracket_loc = InStr(FrontString, "[")
+    					back_bracket_loc = InStr(FrontString, "]")
+    					
+    					If (front_bracket_loc < comma_loc) Then 'WHICH MEANS BRACKETS HAVE TWO WORDS INSIDE
+    						goodwell1 = Mid (FrontString, front_bracket_loc+1, comma_loc-front_bracket_loc-1)
+    						goodwell2 = Right(FrontString, comma_loc+2, back_bracket_loc-comma_loc-2)
+    						goodwell_flag = 1
+    						Mid(FrontString, comma_loc, 1, "")	
+    					Else
+    					    comma_loc = InStr(FrontString, ",")
+    						new_entry = Left(FrontString, comma_loc-1)
+    						FrontString = Right(FrontString, Len(FrontString)-comma_loc-1)
+    						
+    						On Error Goto DBError 
+ 							oPrepStmt = connection.prepareStatement("insert into ""Dictionary"" ( ""ID"", ""Word"", ""Flag"", ""Link1"", ""Link2"", ""Count"" ) values ( ?, ?, ?, ?, ?, ? );")
+							oPrepStmt.setString(2, new_entry)
+							oPrepStmt.setString(4, PreviousLine)
+							oPrepStmt.execute()	    						
+    					End If
+    				Loop 
+		
+ 					'PARSING = CUT " -> " and then make 2 strings: 0-> InStr("[")-1 and InStr("[")+1 -> Len(STR)
+    				
+    				front_bracket_loc = InStr(FrontString, "[") 
+    				back_bracket_loc =  InStr(FrontString, "]") 
+    				
+    				unbracketed_word = Left(FrontString, front_bracket_loc-5)
+    				
+
+    				
+    				If goodwell_flag Then
+    					bracketed_word = goodwell1
+    					bracketed_word_2 = goodwell2
+    				Else
+    					bracketed_word = Mid(FrontString, front_bracket_loc+1, back_bracket_loc-front_bracket_loc-1)
+    					bracketed_word_2 = ""
+    				End If
+    				
+    				goodwell_flag = 0
+    				
+    				
+    				If ((unbracketed_word = bracketed_word) OR (unbracketed_word = bracketed_word_2)) Then 'COMPARE TWO STRINGS, IF EQUAL, DO NOTHING
+    					'DO NOTHING
+
+    				Else	
+						'IF NOT EQUAL, CHECK IF LEFTHAND STRING IS IN DICT
+    					For i = 0 To Ambiguous_Words_Length-1
+    						If (Ambiguous_Words(i) = unbracketed_word) Then
+    							Flag = i+1
+    						End If
+    					Next i
+    					
+    					
+    					If (Flag > 0) Then
+    						'IF IN DICT, CHECK IF LINK1 = RIGHTHAND STRING 
+							If (Ambiguous_Words_Link1s(Flag-1) = bracketed_word) Then
+								'DO NOTHING
+							Else
+    							If (Ambiguous_Words_Link2s(Flag-1) = "") Then
+    								Ambiguous_Words_Link2s(Flag-1) = bracketed_word
+    								'MsgBox("Good! UNBRACK/BRACK/L1/L2: " & unbracketed_word & " : " & bracketed_word & " : " & Ambiguous_Words_Link1s(Flag-1) & " : " & Ambiguous_Words_Link2s(Flag-1))
+    							ElseIf Not (Ambiguous_Words_Link2s(Flag-1) = bracketed_word) Then
+    								MsgBox("Not good! UNBRACK/BRACK/L1/L2: " & unbracketed_word & " : " & bracketed_word & " : " & Ambiguous_Words_Link1s(Flag-1) & " : " & Ambiguous_Words_Link2s(Flag-1))
+    							End If
+    						End If
+    						
+    						Flag = 0
+    					Else
+    						Ambiguous_Words(Ambiguous_Words_Length) = unbracketed_word
+    						Ambiguous_Words_Link1s(Ambiguous_Words_Length) = bracketed_word
+    						Ambiguous_Words_Length = Ambiguous_Words_Length + 1
+    					End If
+					
+					End If
+    							
+    				CurrentLine = BackString
+
+    			Loop 'END OF DO-WHILE CURRENTLINE HAS BRACKETS
+    			
+    			'CURRENTLINE WILL NOW ONLY HAVE COMMA ENTRIES
+    			'PARSE CURRENTLINE COMMA ENTRIES
+    			
+    			Do While InStr(CurrentLine, ",")
+    				comma_loc = InStr(CurrentLine, ",")
+    				FirstString = Left(CurrentLine, comma_loc-1)
+    				 
+    				oPrepStmt = connection.prepareStatement("insert into ""Dictionary"" ( ""ID"", ""Word"", ""Flag"", ""Link1"", ""Link2"", ""Count"" ) values ( ?, ?, ?, ?, ?, ? );")
+					oPrepStmt.setString(2, FirstString)
+					oPrepStmt.setString(4, PreviousLine)
+					oPrepStmt.execute()	
+					
+					CurrentLine = Right(CurrentLine, Len(CurrentLine)-comma_loc-1) 
+    			Loop
+    			
+    			If Not (CurrentLine = "") Then
+    				oPrepStmt = connection.prepareStatement("insert into ""Dictionary"" ( ""ID"", ""Word"", ""Flag"", ""Link1"", ""Link2"", ""Count"" ) values ( ?, ?, ?, ?, ?, ? );")
+					oPrepStmt.setString(2, CurrentLine)
+					oPrepStmt.setString(4, PreviousLine)
+					oPrepStmt.execute()	
+				End If
+				
+    			'END OF WHAT TO DO WHEN TABBED LINE ENCOUNTERED	
+		
+  			Else 'WHEN NO TAB PRESENT = MAIN ENTRY
+  			
+  				If InStr(CurrentLine, " -> ") Then 'IF MAIN ENTRY IS COMPLEX
+  				
+  					'Flag = 1
+  				
+  					FrontString = Left(CurrentLine,  InStr(CurrentLine, " -> ")-1)  
+  					BackString = Mid(CurrentLine, InStr(CurrentLine, "[")+1, InStr(CurrentLine, "]")-InStr(CurrentLine, "[")-1)
+  					
+  					If InStr(BackString, ",") Then 'If complex entry has two correlates
+  					
+  						Link1_Word = Left(BackString, InStr(BackString, ",")-1)
+  						Link2_Word = Mid(BackString, InStr(BackString, ",")+2, InStr(BackString, "]")-InStr(BackString, ",")-2)
+
+  					Else 'If entry is complex has only one correlate
+  						Link1_Word = BackString
+  						Link2_Word = ""
+  						
+  						'IF link1 exists in dict then link to ID
+  
+  					End If 'ENDS TWO CORRELATE/ONE CORRELATE LOOP						
+  						
+ 					oPrepStmt = connection.prepareStatement("insert into ""Dictionary"" ( ""ID"", ""Word"", ""Flag"", ""Link1"", ""Link2"", ""Count"" ) values ( ?, ?, ?, ?, ?, ? );")
+					oPrepStmt.setString(2, FrontString)
+					oPrepStmt.setInt(3, 1)
+					oPrepStmt.setString(4, Link1_Word)
+					oPrepStmt.setString(5, Link2_Word)
+					oPrepStmt.execute()
+
+  				Else 'IF MAIN ENTRY IS SIMPLE AND SINGLE 
+  					FrontString = CurrentLine
+
+					ON ERROR GOTO DBError
+						
+					Dim oPrepStmt3 As Object
+						
+					oPrepStmt3 =  connection.prepareStatement("insert into ""Dictionary"" ( ""ID"", ""Word"", ""Flag"", ""Link1"", ""Link2"", ""Count"" ) values ( ?, ?, ?, ?, ?, ? );")
+					oPrepStmt3.setString(2, FrontString)
+					oPrepStmt3.execute()
+				
+  					Record_Exists_Flag = 0    					
+  					
+  					
+  				End If 'Main entry parser - is main entry complex or single?
+  				
+  				PreviousLine = FrontString
+  				
+  			End If 'Parses line to see if entry is main entry or tabbed
+		
+		Loop 'Do-While loop while file has unread contents 
+	     
+		CLOSE #iNum
+
+
+	Else
+	    
+	    MsgBox(CountFileName & " does NOT exist", 64, "Warning")
+	
+	End If 'FILE EXISTS LOOP
+		
+	DBError: 
+		    If Err <> 0 Then
+	     		MsgBox("DB Error Code: " & Err)
+	     		BasicLibraries.LoadLibrary("XrayTool")
+				XRay Err
+	    	End If
+	    	
+	    	On Local Error Goto 0
+	
+	NoFile: 'in case an error occured go here..
+	    	If Err <> 0 Then
+	     		Msgbox(CountFileName, 64, "Error")
+	    	End If
+	    	On Local Error Goto 0
+
+	Dim oPrepStmt5 As Object
+	
+	i = 0
+
+	For i = 0 To (Ambiguous_Words_Length-1)
+		oPrepStmt5 = connection.prepareStatement("INSERT INTO ""Dictionary"" (""ID"", ""Word"", ""Flag"", ""Link1"", ""Link2"", ""Count"" ) VALUES(?, ?, ?, ?, ?, ?);")
+		oPrepStmt5.setString(2, Ambiguous_Words(i))
+		
+		If Not (Ambiguous_Words_Link2s(i) = "") Then
+			oPrepStmt5.setInt(3, 1)
+		End If
+		
+		oPrepStmt5.setString(4, Ambiguous_Words_Link1s(i))
+		oPrepStmt5.setString(5, Ambiguous_Words_Link2s(i))
+		oPrepStmt5.execute()
+	Next i
+
+	connection.dispose
+
+	MsgBox ("FINISHED. " & Ambiguous_Words_Length & " ambiguous words found / inserted into dictionary.")
+	  	
+End Sub 

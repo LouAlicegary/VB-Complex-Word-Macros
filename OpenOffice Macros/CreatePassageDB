@@ -1,0 +1,131 @@
+Sub createPassageDB()
+
+    Dim dbContext, dataSource, connection, oTables, oTableDescriptor, oCol, oCols
+	
+    dbContext  = CreateUnoService("com.sun.star.sdb.DatabaseContext") 
+    dataSource = dbContext.getByName("TEPS")  ' This is an OOo 2.0 Base HSQL registered data source 
+    connection = dataSource.getConnection("", "") 
+
+    oTables = connection.getTables()
+    
+    oTableDescriptor = oTables.createDataDescriptor()
+    oTableDescriptor.Name = "Passages"
+    
+    oCols = oTableDescriptor.getColumns()
+    oCol = oCols.createDataDescriptor()
+    oCol.Name = "ID"
+    oCol.Type = com.sun.star.sdbc.DataType.INTEGER
+    oCol.IsNullable = com.sun.star.sdbc.ColumnValue.NO_NULLS
+    oCol.IsAutoIncrement = True
+    oCol.Precision = 10
+    oCol.Description = "Primary Key"
+    oCols.appendByDescriptor(oCol)
+
+    oCol.Name = "Set_Name"
+    oCol.Type = com.sun.star.sdbc.DataType.VARCHAR
+    oCol.Description = "Vocab Word"
+    oCol.Precision = 25
+    oCol.IsAutoIncrement = False
+    oCols.appendByDescriptor(oCol)
+
+    oCol.Name = "Number"
+    oCol.Type = com.sun.star.sdbc.DataType.INTEGER
+    oCol.Precision = 3
+    oCol.IsNullable = com.sun.star.sdbc.ColumnValue.NULLABLE 
+    oCol.Description = "Number"
+    oCols.appendByDescriptor(oCol)
+
+    oCol.Name = "Passage_Type"
+    oCol.Type = com.sun.star.sdbc.DataType.VARCHAR
+    oCol.Description = "Passage_Type"
+    oCol.Precision = 25
+    oCol.IsAutoIncrement = False
+    oCols.appendByDescriptor(oCol)
+    
+    oCol.Name = "Passage"
+    oCol.Type = com.sun.star.sdbc.DataType.VARCHAR
+    oCol.Description = "Link2"
+    oCol.Precision = 1000
+    oCol.IsAutoIncrement = False
+    oCols.appendByDescriptor(oCol)
+
+    oCol.Name = "Question"
+    oCol.Type = com.sun.star.sdbc.DataType.VARCHAR
+    oCol.Description = "Question"
+    oCol.Precision = 100
+    oCol.IsAutoIncrement = False
+    oCols.appendByDescriptor(oCol)
+
+    oCol.Name = "AC_Block"
+    oCol.Type = com.sun.star.sdbc.DataType.VARCHAR
+    oCol.Description = "Question"
+    oCol.Precision = 400
+    oCol.IsAutoIncrement = False
+    oCols.appendByDescriptor(oCol)
+    
+    oCol.Name = "CA"
+    oCol.Type = com.sun.star.sdbc.DataType.VARCHAR
+    oCol.Description = "Question"
+    oCol.Precision = 100
+    oCol.IsAutoIncrement = False
+    oCols.appendByDescriptor(oCol)
+    
+    oCol.Name = "IA1"
+    oCol.Type = com.sun.star.sdbc.DataType.VARCHAR
+    oCol.Description = "Question"
+    oCol.Precision = 100
+    oCol.IsAutoIncrement = False
+    oCols.appendByDescriptor(oCol)
+    
+    oCol.Name = "IA2"
+    oCol.Type = com.sun.star.sdbc.DataType.VARCHAR
+    oCol.Description = "Question"
+    oCol.Precision = 100
+    oCol.IsAutoIncrement = False
+    oCols.appendByDescriptor(oCol)
+    
+    oCol.Name = "IA3"
+    oCol.Type = com.sun.star.sdbc.DataType.VARCHAR
+    oCol.Description = "Question"
+    oCol.Precision = 100
+    oCol.IsAutoIncrement = False
+    oCols.appendByDescriptor(oCol)
+           
+    oCol.Name = "Passage_Rating"
+    oCol.Type = com.sun.star.sdbc.DataType.INTEGER
+    oCol.Precision = 1
+    oCol.IsNullable = com.sun.star.sdbc.ColumnValue.NULLABLE 
+    oCol.Description = "Counter"
+    oCols.appendByDescriptor(oCol)
+
+    oCol.Name = "CA_Rating"
+    oCol.Type = com.sun.star.sdbc.DataType.INTEGER
+    oCol.Precision = 1
+    oCol.IsNullable = com.sun.star.sdbc.ColumnValue.NULLABLE 
+    oCol.Description = "Counter"
+    oCols.appendByDescriptor(oCol)
+    
+    oCol.Name = "IA1_Rating"
+    oCol.Type = com.sun.star.sdbc.DataType.INTEGER
+    oCol.Precision = 1
+    oCol.IsNullable = com.sun.star.sdbc.ColumnValue.NULLABLE 
+    oCol.Description = "Counter"
+    oCols.appendByDescriptor(oCol)
+
+    oCol.Name = "IA2_Rating"
+    oCol.Type = com.sun.star.sdbc.DataType.INTEGER
+    oCol.Precision = 1
+    oCol.IsNullable = com.sun.star.sdbc.ColumnValue.NULLABLE 
+    oCol.Description = "Counter"
+    oCols.appendByDescriptor(oCol)
+    
+    oCol.Name = "IA3_Rating"
+    oCol.Type = com.sun.star.sdbc.DataType.INTEGER
+    oCol.Precision = 1
+    oCol.IsNullable = com.sun.star.sdbc.ColumnValue.NULLABLE 
+    oCol.Description = "Counter"
+    oCols.appendByDescriptor(oCol)
+                        
+    oTables.appendByDescriptor(oTableDescriptor)
+    
+End Sub	

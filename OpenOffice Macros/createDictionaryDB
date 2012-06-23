@@ -1,0 +1,61 @@
+Sub createDictionaryDB()
+
+    Dim dbContext, dataSource, connection, oTables, oTableDescriptor, oCol, oCols
+	
+    dbContext  = CreateUnoService("com.sun.star.sdb.DatabaseContext") 
+    dataSource = dbContext.getByName("TEPS")  ' This is an OOo 2.0 Base HSQL registered data source 
+    connection = dataSource.getConnection("", "") 
+
+    oTables = connection.getTables()
+    
+    oTableDescriptor = oTables.createDataDescriptor()
+    oTableDescriptor.Name = "Dictionary"
+
+    oCols = oTableDescriptor.getColumns()
+    oCol = oCols.createDataDescriptor()
+    oCol.Name = "ID"
+    oCol.Type = com.sun.star.sdbc.DataType.INTEGER
+    oCol.IsNullable = com.sun.star.sdbc.ColumnValue.NO_NULLS
+    oCol.IsAutoIncrement = True
+    oCol.Precision = 10
+    oCol.Description = "Primary Key"
+    oCols.appendByDescriptor(oCol)
+
+    oCol.Name = "Word"
+    oCol.Type = com.sun.star.sdbc.DataType.VARCHAR
+    oCol.Description = "Vocab Word"
+    oCol.Precision = 25
+    oCol.IsAutoIncrement = False
+    oCols.appendByDescriptor(oCol)
+
+    oCol.Name = "Flag"
+    oCol.Type = com.sun.star.sdbc.DataType.INTEGER
+    oCol.Precision = 10
+    oCol.IsNullable = com.sun.star.sdbc.ColumnValue.NULLABLE 
+    oCol.Description = "Flag"
+    oCols.appendByDescriptor(oCol)
+
+    oCol.Name = "Link1"
+    oCol.Type = com.sun.star.sdbc.DataType.VARCHAR
+    oCol.Description = "Link1"
+    oCol.Precision = 25
+    oCol.IsAutoIncrement = False
+    oCols.appendByDescriptor(oCol)
+    
+    oCol.Name = "Link2"
+    oCol.Type = com.sun.star.sdbc.DataType.VARCHAR
+    oCol.Description = "Link2"
+    oCol.Precision = 25
+    oCol.IsAutoIncrement = False
+    oCols.appendByDescriptor(oCol)
+    
+    oCol.Name = "Count"
+    oCol.Type = com.sun.star.sdbc.DataType.INTEGER
+    oCol.Precision = 10
+    oCol.IsNullable = com.sun.star.sdbc.ColumnValue.NULLABLE 
+    oCol.Description = "Counter"
+    oCols.appendByDescriptor(oCol)
+        
+    oTables.appendByDescriptor(oTableDescriptor)
+
+End Sub

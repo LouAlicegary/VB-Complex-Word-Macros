@@ -1,0 +1,377 @@
+Sub CharCount()
+
+    Dim Arg1 As String
+    'Ignore first 9 characters of the private field - the Word 'Private', and the spaces
+    Arg1 = Mid$(Selection.Fields(2).Code, 9)
+    'MsgBox (Arg1 * 2)
+
+            
+'Filling in difficulties / char counts for passages'
+
+            For varRow = 1 To 50
+                StatusBar = "Computing difficulty and length for: Passage " & varRow
+                Call Passages(Arg1, varRow)
+                StatusBar = " "
+            Next varRow
+            
+
+'Making front charts for 1-25 and 26-50 -- numbers are cutoffs for soojoons'
+
+            Call MakeChart(Arg1, 0, 60, 75, 90)
+            Call MakeChart(Arg1, 1, 70, 85, 100)
+            Call MakeChart(Arg1, 2, 180, 210, 240)
+            Call MakeChart(Arg1, 3, 330, 380, 430)
+
+            ActiveDocument.Fields.Update
+            
+            
+    End Sub
+    Sub First()
+        Dim Arg1 As String
+        'Ignore first 9 characters of the private field - the Word 'Private', and the spaces
+        Arg1 = Mid$(Selection.Fields(2).Code, 9)
+    
+        Call MakeChart(Arg1, 0, 60, 75, 90)
+
+    End Sub
+    Sub Second()
+        Dim Arg1 As String
+        'Ignore first 9 characters of the private field - the Word 'Private', and the spaces
+        Arg1 = Mid$(Selection.Fields(2).Code, 9)
+        
+        Call MakeChart(Arg1, 1, 70, 85, 100)
+
+    End Sub
+    Sub Third()
+        Dim Arg1 As String
+        'Ignore first 9 characters of the private field - the Word 'Private', and the spaces
+        Arg1 = Mid$(Selection.Fields(2).Code, 9)
+    
+        Call MakeChart(Arg1, 2, 180, 210, 240)
+
+    End Sub
+    Sub Fourth()
+        Dim Arg1 As String
+        'Ignore first 9 characters of the private field - the Word 'Private', and the spaces
+        Arg1 = Mid$(Selection.Fields(2).Code, 9)
+        
+        Call MakeChart(Arg1, 3, 330, 380, 430)
+
+    End Sub
+
+    Sub Passages(Arg1, Arg2)
+
+            If Arg2 < 21 Then
+                PassCheat = 13
+                ACCheat = 23
+                QCheat = 2
+            ElseIf Arg2 < 41 Then
+                PassCheat = 6
+                ACCheat = 23
+                QCheat = 2
+            ElseIf Arg2 < 46 Then
+                PassCheat = 35
+                ACCheat = 23
+                QCheat = 0
+            Else
+                PassCheat = 23
+                ACCheat = 23
+                QCheat = 0
+            End If
+
+            ActiveDocument.Tables(Arg2 + 6).Cell(2, Arg1).Range.Select
+            'Gets number of characters in cell minus cell marker and
+            'leading spaces, then assigns it to the variable.
+            myVar = Len(LTrim(Selection.Range.Text)) - PassCheat
+            ActiveDocument.Tables(Arg2 + 6).Cell(3 + QCheat, Arg1 * 3).Range.Delete
+
+            If myVar < 0 Then
+                ActiveDocument.Tables(Arg2 + 6).Cell(3 + QCheat, Arg1 * 3).Range.InsertAfter (0)
+            Else
+                ActiveDocument.Tables(Arg2 + 6).Cell(3 + QCheat, Arg1 * 3).Range.InsertAfter (myVar)
+            End If
+            
+
+    End Sub
+  Sub MakeChart(Arg1, Arg2, Arg3, Arg4, Arg5)
+
+            ActiveDocument.Fields.Update
+
+            SooJoon1 = 0
+            SooJoon2 = 0
+            SooJoon3 = 0
+            SooJoon4 = 0
+                   
+            If Arg2 = 0 Then
+                varMax = 20
+                varOffset = 0
+            ElseIf Arg2 = 1 Then
+                varMax = 20
+                varOffset = 20
+            ElseIf Arg2 = 2 Then
+                varMax = 5
+                varOffset = 40
+            Else
+                varMax = 5
+                varOffset = 45
+            End If
+            
+            
+            
+            For varRow = 1 To varMax
+                
+                  StatusBar = "Computing passage length score for: Passage " & (varOffset + varRow)
+                
+                  ActiveDocument.Tables(Arg1 * 2 - 1).Cell(varRow + 1, (Arg2 * 3 + 2)).Range.Select
+                  'Gets number of characters in cell minus cell marker and
+                  'leading spaces, then assigns it to the variable.
+                  myVar = Val(Selection.Range.Text)
+                  
+                  If myVar = 0 Then
+                     ActiveDocument.Tables(Arg1 * 2 - 1).Cell(varRow + 1, Arg2 * 3 + 2).Shading.Texture = wdTextureDarkCross
+                     ActiveDocument.Tables(Arg1 * 2 - 1).Cell(varRow + 1, Arg2 * 3 + 2).Shading.BackgroundPatternColorIndex = wdWhite
+                  ElseIf myVar < (Arg3 + 1) Then
+                     SooJoon1 = SooJoon1 + 1
+                     ActiveDocument.Tables(Arg1 * 2 - 1).Cell(varRow + 1, Arg2 * 3 + 2).Shading.Texture = wdTextureNone
+                     ActiveDocument.Tables(Arg1 * 2 - 1).Cell(varRow + 1, Arg2 * 3 + 2).Shading.BackgroundPatternColorIndex = wdWhite
+                  ElseIf myVar < (Arg4 + 1) Then
+                     SooJoon2 = SooJoon2 + 1
+                     ActiveDocument.Tables(Arg1 * 2 - 1).Cell(varRow + 1, Arg2 * 3 + 2).Shading.Texture = wdTextureNone
+                     ActiveDocument.Tables(Arg1 * 2 - 1).Cell(varRow + 1, Arg2 * 3 + 2).Shading.BackgroundPatternColorIndex = wdGray25
+                  ElseIf myVar < (Arg5 + 1) Then
+                     SooJoon3 = SooJoon3 + 1
+                     ActiveDocument.Tables(Arg1 * 2 - 1).Cell(varRow + 1, Arg2 * 3 + 2).Shading.Texture = wdTextureNone
+                     ActiveDocument.Tables(Arg1 * 2 - 1).Cell(varRow + 1, Arg2 * 3 + 2).Shading.BackgroundPatternColorIndex = wdGray50
+                  Else
+                     SooJoon4 = SooJoon4 + 1
+                     ActiveDocument.Tables(Arg1 * 2 - 1).Cell(varRow + 1, Arg2 * 3 + 2).Shading.Texture = wdTextureNone
+                     ActiveDocument.Tables(Arg1 * 2 - 1).Cell(varRow + 1, Arg2 * 3 + 2).Shading.BackgroundPatternColorIndex = wdBlack
+                  End If
+                  
+                  StatusBar = " "
+                  
+                  
+            Next varRow
+
+           Call SooJoons(Arg1, Arg2, 0, SooJoon1, SooJoon2, SooJoon3, SooJoon4)
+
+
+    End Sub
+   
+    Sub SooJoons(Arg1, Arg2, Arg3, SJ1, SJ2, SJ3, SJ4)
+
+
+            GoalMin = 0
+            GoalMax = 0
+
+            'ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 3), ((Arg2 * 6 + 5)).Range.Select
+            ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 3), (Arg2 * 6 + 5)).Range.Delete
+            ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 3), (Arg2 * 6 + 5)).Range.InsertAfter (SJ1)
+            ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 3), (Arg2 * 6 + 2)).Range.Select
+            GoalMin = Val(Selection.Range.Text)
+            ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 3), (Arg2 * 6 + 4)).Range.Select
+            GoalMax = Val(Selection.Range.Text)
+            If ((SJ1 >= GoalMin) And (SJ1 <= GoalMax)) Then
+                ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 3), (Arg2 * 6 + 5)).Shading.BackgroundPatternColorIndex = wdBrightGreen
+            Else
+                ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 3), (Arg2 * 6 + 5)).Shading.BackgroundPatternColorIndex = wdRed
+            End If
+                
+                
+            'ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 4), (Arg2 * 6) + 5)).Range.Select
+            ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 4), (Arg2 * 6 + 5)).Range.Delete
+            ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 4), (Arg2 * 6 + 5)).Range.InsertAfter (SJ2)
+            ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 4), (Arg2 * 6 + 2)).Range.Select
+            GoalMin = Val(Selection.Range.Text)
+            ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 4), (Arg2 * 6 + 4)).Range.Select
+            GoalMax = Val(Selection.Range.Text)
+            If ((SJ2 >= GoalMin) And (SJ2 <= GoalMax)) Then
+                ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 4), (Arg2 * 6 + 5)).Shading.BackgroundPatternColorIndex = wdBrightGreen
+            Else
+                ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 4), (Arg2 * 6 + 5)).Shading.BackgroundPatternColorIndex = wdRed
+            End If
+            
+            'ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 5), (Arg2 * 6 + 5)).Range.Select
+            ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 5), (Arg2 * 6 + 5)).Range.Delete
+            ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 5), (Arg2 * 6 + 5)).Range.InsertAfter (SJ3)
+            ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 5), (Arg2 * 6 + 2)).Range.Select
+            GoalMin = Val(Selection.Range.Text)
+            ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 5), (Arg2 * 6 + 4)).Range.Select
+            GoalMax = Val(Selection.Range.Text)
+            If ((SJ3 >= GoalMin) And (SJ3 <= GoalMax)) Then
+                ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 5), (Arg2 * 6 + 5)).Shading.BackgroundPatternColorIndex = wdBrightGreen
+            Else
+                ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 5), (Arg2 * 6 + 5)).Shading.BackgroundPatternColorIndex = wdRed
+            End If
+            
+            'ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 6), (Arg2 * 6 + 5)).Range.Select
+            ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 6), (Arg2 * 6 + 5)).Range.Delete
+            ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 6), (Arg2 * 6 + 5)).Range.InsertAfter (SJ4)
+            ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 6), (Arg2 * 6 + 2)).Range.Select
+            GoalMin = Val(Selection.Range.Text)
+            ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 6), (Arg2 * 6 + 4)).Range.Select
+            GoalMax = Val(Selection.Range.Text)
+            If ((SJ4 >= GoalMin) And (SJ4 <= GoalMax)) Then
+                ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 6), (Arg2 * 6 + 5)).Shading.BackgroundPatternColorIndex = wdBrightGreen
+            Else
+                ActiveDocument.Tables(Arg1 * 2).Cell((Arg3 * 5 + 6), (Arg2 * 6 + 5)).Shading.BackgroundPatternColorIndex = wdRed
+                
+            End If
+
+    End Sub
+
+
+    Sub TableResize()
+
+        For varRow = 46 To 60
+            ActiveDocument.Tables(varRow + 6).Rows(1).HeightRule = wdRowHeightExactly
+            ActiveDocument.Tables(varRow + 6).Rows(1).Height = CentimetersToPoints(0.5)
+        
+            ActiveDocument.Tables(varRow + 6).Rows(2).HeightRule = wdRowHeightExactly
+            ActiveDocument.Tables(varRow + 6).Rows(2).Height = CentimetersToPoints(7)
+            
+            ActiveDocument.Tables(varRow + 6).Rows(3).HeightRule = wdRowHeightExactly
+            ActiveDocument.Tables(varRow + 6).Rows(3).Height = CentimetersToPoints(0.5)
+            
+            ActiveDocument.Tables(varRow + 6).Rows(4).HeightRule = wdRowHeightExactly
+            ActiveDocument.Tables(varRow + 6).Rows(4).Height = CentimetersToPoints(1)
+            
+            ActiveDocument.Tables(varRow + 6).Rows(5).HeightRule = wdRowHeightExactly
+            ActiveDocument.Tables(varRow + 6).Rows(5).Height = CentimetersToPoints(0.5)
+            
+            ActiveDocument.Tables(varRow + 6).Rows(6).HeightRule = wdRowHeightExactly
+            ActiveDocument.Tables(varRow + 6).Rows(6).Height = CentimetersToPoints(3.5)
+            
+            ActiveDocument.Tables(varRow + 6).Rows(7).HeightRule = wdRowHeightExactly
+            ActiveDocument.Tables(varRow + 6).Rows(7).Height = CentimetersToPoints(0.8)
+            
+            ActiveDocument.Tables(varRow + 6).Rows(8).HeightRule = wdRowHeightExactly
+            ActiveDocument.Tables(varRow + 6).Rows(8).Height = CentimetersToPoints(0.8)
+            
+            ActiveDocument.Tables(varRow + 6).Rows(9).HeightRule = wdRowHeightExactly
+            ActiveDocument.Tables(varRow + 6).Rows(9).Height = CentimetersToPoints(0.8)
+            
+            ActiveDocument.Tables(varRow + 6).Rows(10).HeightRule = wdRowHeightExactly
+            ActiveDocument.Tables(varRow + 6).Rows(10).Height = CentimetersToPoints(0.8)
+            
+            ActiveDocument.Tables(varRow + 6).Rows(11).HeightRule = wdRowHeightExactly
+            ActiveDocument.Tables(varRow + 6).Rows(11).Height = CentimetersToPoints(0.8)
+            
+            ActiveDocument.Tables(varRow + 6).Rows(12).HeightRule = wdRowHeightExactly
+            ActiveDocument.Tables(varRow + 6).Rows(12).Height = CentimetersToPoints(0.4)
+            
+            ActiveDocument.Tables(varRow + 6).Rows(13).HeightRule = wdRowHeightExactly
+            ActiveDocument.Tables(varRow + 6).Rows(13).Height = CentimetersToPoints(0.5)
+        Next varRow
+
+    End Sub
+Sub Macro2()
+         For varRow = 31 To 60
+            ActiveDocument.Tables(varRow + 6).Cell(11, 4).Range.Select
+            Selection.Font.Color = -587137152
+            Selection.SelectCell
+            Selection.ParagraphFormat.Alignment = wdAlignParagraphLeft
+            Selection.Cells.VerticalAlignment = wdCellAlignVerticalTop
+        Next varRow
+End Sub
+Sub Macro1()
+'
+' Macro1 Macro
+'
+'
+    Selection.SelectCell
+    Selection.ParagraphFormat.Alignment = wdAlignParagraphLeft
+    Selection.Cells.VerticalAlignment = wdCellAlignVerticalTop
+End Sub
+Sub QuestionEdit()
+    Dim Arg1 As String
+    'Ignore first 9 characters of the private field - the Word 'Private', and the spaces
+    Arg1 = Mid$(Selection.Fields(2).Code, 9)
+    
+            If Arg1 < 21 Then
+                PassCheat = 13
+                ACCheat = 23
+                QCheat = 2
+            ElseIf Arg1 < 41 Then
+                PassCheat = 6
+                ACCheat = 23
+                QCheat = 2
+            ElseIf Arg1 < 46 Then
+                PassCheat = 35
+                ACCheat = 23
+                QCheat = 0
+            Else
+                PassCheat = 23
+                ACCheat = 23
+                QCheat = 0
+            End If
+
+            ActiveDocument.Tables(Arg1 + 6).Cell(2, 1).Range.Select
+            'Gets number of characters in cell minus cell marker and
+            'leading spaces, then assigns it to the variable.
+            myVar = Len(LTrim(Selection.Range.Text)) - PassCheat
+            ActiveDocument.Tables(Arg1 + 6).Cell(3 + QCheat, 3).Range.Delete
+
+            If myVar < 0 Then
+                ActiveDocument.Tables(Arg1 + 6).Cell(3 + QCheat, 3).Range.InsertAfter (0)
+            Else
+                ActiveDocument.Tables(Arg1 + 6).Cell(3 + QCheat, 3).Range.InsertAfter (myVar)
+            End If
+            Selection.Fields.Update
+            
+            
+            ActiveDocument.Tables(Arg1 + 6).Cell(2, 2).Range.Select
+            'Gets number of characters in cell minus cell marker and
+            'leading spaces, then assigns it to the variable.
+            myVar = Len(LTrim(Selection.Range.Text)) - PassCheat
+            ActiveDocument.Tables(Arg1 + 6).Cell(3 + QCheat, 6).Range.Delete
+
+            If myVar < 0 Then
+                ActiveDocument.Tables(Arg1 + 6).Cell(3 + QCheat, 6).Range.InsertAfter (0)
+            Else
+                ActiveDocument.Tables(Arg1 + 6).Cell(3 + QCheat, 6).Range.InsertAfter (myVar)
+            End If
+            Selection.Fields.Update
+            
+            
+            
+            ActiveDocument.Tables(Arg1 + 6).Cell(2, 3).Range.Select
+            'Gets number of characters in cell minus cell marker and
+            'leading spaces, then assigns it to the variable.
+            myVar = Len(LTrim(Selection.Range.Text)) - PassCheat
+            ActiveDocument.Tables(Arg1 + 6).Cell(3 + QCheat, 9).Range.Delete
+
+            If myVar < 0 Then
+                ActiveDocument.Tables(Arg1 + 6).Cell(3 + QCheat, 9).Range.InsertAfter (0)
+            Else
+                ActiveDocument.Tables(Arg1 + 6).Cell(3 + QCheat, 9).Range.InsertAfter (myVar)
+            End If
+            Selection.Fields.Update
+            
+            
+            
+End Sub
+Sub DeleteAllContent()
+ 
+            For varRow = 1 To 50
+
+                        
+                        If varRow < 41 Then
+                            ActiveDocument.Tables(varRow + 6).Cell(2, 1).Range.Delete
+                            ActiveDocument.Tables(varRow + 6).Cell(2, 2).Range.Delete
+                            ActiveDocument.Tables(varRow + 6).Cell(2, 3).Range.Delete
+                            ActiveDocument.Tables(varRow + 6).Cell(4, 1).Range.Delete
+                            ActiveDocument.Tables(varRow + 6).Cell(4, 2).Range.Delete
+                            ActiveDocument.Tables(varRow + 6).Cell(4, 3).Range.Delete
+                            
+                         Else
+                         
+                            ActiveDocument.Tables(varRow + 6).Cell(2, 1).Range.Delete
+                            ActiveDocument.Tables(varRow + 6).Cell(2, 2).Range.Delete
+                            ActiveDocument.Tables(varRow + 6).Cell(2, 3).Range.Delete
+                        End If
+                    
+                Next varRow
+End Sub
+
+

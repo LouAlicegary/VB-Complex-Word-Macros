@@ -1,0 +1,701 @@
+'''''''''''''''''''''''''''''''''''''''''''''''START GLOBAL VARIABLES'''''''''''''''''''''''''''''''''''''''''
+
+Dim DIYDialog, MainDialog As Object
+Dim part_lbox As Object
+Dim setname_ctr As Object
+Dim oBar As Object    					' Generated status bar at bottom of window 
+
+Dim Set_Name As String
+
+Dim Hor_Offset, Part_Num As Integer
+Dim im_pos As Integer
+Dim word_list_size As Integer			' Size of Word arrays a() and b()
+Dim passage_counter As Integer			' Counter for which passage is being read from
+Dim passage_word_counter
+
+
+Dim oFrame, p as long 
+
+Dim a(100000) As String
+Dim b(100000) As Integer
+Dim stop_list(150) As String
+Dim stop_list_counter(150) As Integer
+Dim stop_list_flag As Integer
+Dim stop_list_size As Integer			' Size of Stop List (the, a, an, in, about, etc)
+	
+'''''''''''''''''''''''''''''''''''''''''''''''END GLOBAL VARIABLES'''''''''''''''''''''''''''''''''''''''''''	
+
+
+
+
+
+
+
+
+Sub StringStrip 'Strips all of the words from the passages and puts them in a field / runs "Populate_New_Dict" at end
+	
+	Dim newString As String
+	Dim char_pos As Integer
+	Dim frontString, backString, oldWord, thisWord As String
+
+   	Dim contractions_list(150) As String
+   	Dim full_forms_list(150) As String
+   	Dim thisPassage(150) As String
+   	Dim contractions_list_size As Integer
+	Dim stopping_point As Integer
+	
+	Dim outputString As String
+	
+   	Dim temp_string As String
+   	Dim n As Long
+   	
+   	stopping_point = 4000 'how many iterations to do "vocab lists" for -- the algorithm is quick enough now i can prob get rid of this
+	
+	word_list_size = 0
+	oldWord = ""
+	thisWord = ""
+	
+	oBar = ThisComponent.CurrentController.StatusIndicator 
+	oBar.start("Getting words from dictionary", 100)
+
+	dbContext  = CreateUnoService("com.sun.star.sdb.DatabaseContext") 
+	dataSource = dbContext.getByName("TEPS")  ' This is an OOo 2.0 Base HSQL registered data source 
+	connection = dataSource.getConnection("", "")	
+	dest = createUnoService("com.sun.star.sdb.RowSet")		
+		
+	dbContext2  = CreateUnoService("com.sun.star.sdb.DatabaseContext") 
+	dataSource2 = dbContext2.getByName("TEPS")  ' This is an OOo 2.0 Base HSQL registered data source 
+	connection2 = dataSource2.getConnection("", "")	
+	dest2 = createUnoService("com.sun.star.sdb.RowSet")
+
+' THIS POPULATES A DICTIONARY ARRAY FROM THE "MAIN" DICTIONARY	
+'	With dest2 
+'		.activeConnection = connection2 
+'	    .CommandType = com.sun.star.sdb.CommandType.COMMAND 
+'	    .Command = "SELECT ""Word"" FROM ""Dictionary""" 
+'	    .execute 
+'	    '.afterLast
+'	End With	
+'	
+'	n = 0
+'	
+'	If Not IsNull(dest2) Then
+'	 	While dest2.next
+'   			a(n) = dest2.getString(1)
+'     		n = n + 1
+'      		      		
+'		Wend
+'	End If
+	
+	With dest2 
+		.activeConnection = connection2 
+	    .CommandType = com.sun.star.sdb.CommandType.COMMAND 
+	    .Command = "SELECT * FROM ""Stop_List""" 
+	    .execute 
+	    '.afterLast
+	End With	
+	
+	stop_list_size = 0
+	
+	If Not IsNull(dest2) Then
+	 	While dest2.next
+   			stop_list(stop_list_size) = dest2.getString(2)
+   			stop_list_counter(stop_list_size) = 0
+     		stop_list_size = stop_list_size + 1 			      		
+		Wend
+	End If
+	
+	With dest2 
+		.activeConnection = connection2 
+	    .CommandType = com.sun.star.sdb.CommandType.COMMAND 
+	    .Command = "SELECT * FROM ""Contractions""" 
+	    .execute 
+	    '.afterLast
+	End With	
+	
+	contractions_list_size = 0
+	
+	If Not IsNull(dest2) Then
+	 	While dest2.next
+   			contractions_list(contractions_list_size) = dest2.getString(2)
+   			full_forms_list(contractions_list_size) = dest2.getString(3)
+     		contractions_list_size = contractions_list_size + 1 			      		
+		Wend
+	End If	
+	
+	Redim Preserve contractions_list(contractions_list_size) As String
+    Redim Preserve full_forms_list(contractions_list_size) As String
+
+	oBar.Text = "Getting passages"
+	
+	With dest 
+		.activeConnection = connection 
+	    .CommandType = com.sun.star.sdb.CommandType.COMMAND 
+	    .Command = "SELECT * FROM ""Passages""" 
+	    .execute 
+	End With
+		
+	passage_counter = 0
+	
+	dest.last
+	stopping_point = dest.RowCount()
+	dest.beforeFirst
+	
+	MsgBox(stopping_point)
+	
+	If Not IsNull(dest) Then 'RUN THIS LOOP FOR EVERY PASSAGE
+ 	 	Do While dest.next
+ 	 	
+	 	 		oBar.Value = passage_counter * 100 / stopping_point
+	  			oBar.Text = "Passage " & (passage_counter+1) 
+	 	 		
+	 	 		If passage_counter = stopping_point Then
+	 	 			Exit Do
+	 	 		End If
+	 	 		
+	 	 		passage_word_counter = 0
+	 	 	
+	    			newString = dest.getString(5)
+	    		
+				ProcessPassage(newString) 'This strips all the periods, commas, parentheses, etc
+				UndoContractions(newString, contractions_list(), full_forms_list(), contractions_list_size)			
+		
+				char_pos = InStr(newString, " ") 
+				
+				Do While (char_pos > 0)				'THIS LOOP STRIPS THE SPACES BETWEEN WORDS
+					If (char_pos > 1) Then
+					
+						thisWord = Left(newString, char_pos-1)
+						thisWord = LCase(thisWord)
+	
+						thisWord = Trim(thisWord)
+						'MsgBox(passage_word_counter & " : " & thisWord)
+						thisPassage(passage_word_counter) = thisWord
+						'DealWithWord(thisWord)
+						passage_word_counter = passage_word_counter + 1
+						
+					End If
+					
+					newString = Right(newString, Len(newString) - char_pos)
+					char_pos = InStr(newString, " ")				
+					
+					
+				Loop 'END LOOP WHERE SPACES ARE STRIPPED BETWEEN WORDS
+				
+				newString = Trim(newString)
+				thisPassage(passage_word_counter) = newString
+				
+				'DealWithWord(newString)
+				passage_word_counter = passage_word_counter + 1
+				
+				outputString = ""
+				
+				Redim Preserve thisPassage(passage_word_counter) As String
+				
+				ShellSort2(thisPassage())
+				
+				For i = 0 To passage_word_counter-1
+					outputString = outputString & thisPassage(i) & " "
+				Next i
+				
+				outputString = Trim(outputString)
+				
+				With dest	
+			 		.updateString(17, outputString) 
+	        		.updateRow()
+	    		End With
+	    		
+	    		passage_counter = passage_counter + 1
+	    		
+	    		Redim thisPassage(150) As String
+			
+		Loop
+			
+	End If
+	
+	'oPrepStmt = connection.prepareStatement("insert into ""Dictionary"" ( ""ID"", ""Set_Name"", ""Number"", ""Passage_Type"", ""Passage"", ""Question"", ""AC_Block"", ""CA"", ""IA1"", ""IA2"", ""IA3"", ""Passage_Rating"", ""CA_Rating"", ""IA1_Rating"", ""IA2_Rating"", ""IA3_Rating"", Stripped_Content ) values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );")
+	'oPrepStmt.setString(17, newString)
+	'oPrepStmt.execute()	
+	
+	'Redim Preserve a(word_list_size) As String
+    'Redim Preserve b(word_list_size) As Integer
+    
+    'Redim Preserve stop_list(stop_list_size) As String
+    'Redim Preserve stop_list_counter(stop_list_size) As Integer
+	
+	'Populate_New_Dict(stop_list(), stop_list_counter(), a(), b())
+	
+	connection.dispose
+	connection2.dispose
+    
+    'Strip_Quotes()
+    
+End Sub
+
+Sub Strip_Quotes()
+
+	oBar = ThisComponent.CurrentController.StatusIndicator 
+	oBar.start("Getting words from dictionary", 0)
+
+	dbContext  = CreateUnoService("com.sun.star.sdb.DatabaseContext") 
+	dataSource = dbContext.getByName("TEPS")  ' This is an OOo 2.0 Base HSQL registered data source 
+	connection = dataSource.getConnection("", "")	
+	dest = createUnoService("com.sun.star.sdb.RowSet")	
+	
+	With dest 
+		.activeConnection = connection 
+	    .CommandType = com.sun.star.sdb.CommandType.COMMAND 
+	    .Command = "SELECT * FROM ""Passages""" 
+	    .execute 
+	    .beforeFirst()
+	End With
+	
+	passage_counter = 0
+	
+	If Not IsNull(dest) Then 'RUN THIS LOOP FOR EVERY PASSAGE
+ 	 	Do While dest.next
+ 	 	
+ 	 		oBar.Value = passage_counter * 100 / 1440
+  			oBar.Text = "Passage " & (passage_counter+1) 
+ 	 		
+    		newString = dest.getString(17)
+    		ProcessPassage(newString)
+    		
+    		With dest	
+		 		.updateString(17, newString) 
+        		.updateRow()
+    		End With
+    		
+    		passage_counter = passage_counter+1
+    		
+    	Loop
+    End If
+    		
+End Sub
+
+
+Sub Populate_New_Dict(stop_list(), stop_list_counter(), a(), b()) 'Puts all the words from the imitation passages into table "New_Dictionary"
+
+	Dim oTables, oTableDescriptor, oCols, oCol, table_name
+	
+	dbContext  = CreateUnoService("com.sun.star.sdb.DatabaseContext") 
+	dataSource = dbContext.getByName("TEPS")  ' This is an OOo 2.0 Base HSQL registered data source 
+	connection = dataSource.getConnection("", "")	
+	
+	oTables = connection.getTables()
+	
+	table_name = "New_Dictionary"
+	
+    oTableDescriptor = oTables.createDataDescriptor()
+    oTableDescriptor.Name = table_name
+
+    oCols = oTableDescriptor.getColumns()
+    oCol = oCols.createDataDescriptor()
+    oCol.Name = "ID"
+    oCol.Type = com.sun.star.sdbc.DataType.INTEGER
+    oCol.IsNullable = com.sun.star.sdbc.ColumnValue.NO_NULLS
+    oCol.IsAutoIncrement = True
+    oCol.Precision = 10
+    oCol.Description = "Primary Key"
+    oCols.appendByDescriptor(oCol)
+
+    oCol.Name = "Word"
+    oCol.Type = com.sun.star.sdbc.DataType.VARCHAR
+    oCol.Description = "Vocab Word"
+    oCol.Precision = 50
+    oCol.IsAutoIncrement = False
+    oCols.appendByDescriptor(oCol)
+    
+    oCol.Name = "Count"
+    oCol.Type = com.sun.star.sdbc.DataType.INTEGER
+    oCol.Precision = 10
+    oCol.IsNullable = com.sun.star.sdbc.ColumnValue.NULLABLE 
+    oCol.Description = "Counter"
+    oCols.appendByDescriptor(oCol)
+        
+    oTables.appendByDescriptor(oTableDescriptor)
+    
+    'oBar = ThisComponent.CurrentController.StatusIndicator 
+	'oBar.start("ShellSort Started...", 500)
+     
+    ShellSort(stop_list_counter(), stop_list())
+    
+    For i = 0 To stop_list_size-1
+       	oPrepStmt = connection.prepareStatement("insert into ""New_Dictionary"" ( ""ID"", ""Word"", ""Count"" ) values ( ?, ?, ? );")
+		oPrepStmt.setString(2, stop_list(i))
+		oPrepStmt.setInt(3, stop_list_counter(i))
+		oPrepStmt.execute()	
+	Next i
+    
+    ShellSort(b(), a())
+        
+    For i = 0 To word_list_size-1
+        oBar.Value = i / word_list_size
+  		oBar.Text = "Insert " & i & "of" & word_list_size
+    
+       	oPrepStmt = connection.prepareStatement("insert into ""New_Dictionary"" ( ""ID"", ""Word"", ""Count"" ) values ( ?, ?, ? );")
+		oPrepStmt.setString(2, a(i))
+		oPrepStmt.setInt(3, b(i))
+		oPrepStmt.execute()	
+    Next i
+    
+    oBar.Text = "Finished!"
+    
+    connection.dispose
+    
+End Sub
+
+Sub ProcessPassage(newString) 'Guts all the weird characters from the passages
+
+		char_pos = InStr(newString, "(a)")
+    	Do While (char_pos > 0)
+			Mid(newString, char_pos, 3, "")
+			char_pos = InStr(newString, "(a)")
+		Loop
+
+		char_pos = InStr(newString, "(b)")
+    	Do While (char_pos > 0)
+			Mid(newString, char_pos, 3, "")
+			char_pos = InStr(newString, "(b)")
+		Loop
+		
+		char_pos = InStr(newString, "(c)")
+    	Do While (char_pos > 0)
+			Mid(newString, char_pos, 3, "")
+			char_pos = InStr(newString, "(c)")
+		Loop
+		
+		char_pos = InStr(newString, "(d)")
+    	Do While (char_pos > 0)
+			Mid(newString, char_pos, 3, "")
+			char_pos = InStr(newString, "(d)")
+		Loop
+
+	    char_pos = InStr(newString, chr(44)) 'PERIOD
+    	Do While (char_pos > 0)
+			Mid(newString, char_pos, 1, "")
+			char_pos = InStr(newString, chr(44))
+		Loop
+			
+    	char_pos = InStr(newString, chr(46)) 'COMMA
+    	Do While (char_pos > 0)
+			Mid(newString, char_pos, 1, "")
+			char_pos = InStr(newString, chr(46))
+		Loop	
+	
+    	char_pos = InStr(newString, chr(58)) 'COLON
+    	Do While (char_pos > 0)
+			Mid(newString, char_pos, 1, "")
+			char_pos = InStr(newString, chr(58))
+		Loop	
+			
+    	char_pos = InStr(newString, chr(59)) 'SEMICOLON
+   		Do While (char_pos > 0)				
+   			Mid(newString, char_pos, 1, "")
+			char_pos = InStr(newString, chr(59))
+		Loop
+			
+   		char_pos = InStr(newString, chr(63)) 'QUESTION MARK
+    	Do While (char_pos > 0)
+			Mid(newString, char_pos, 1, "")
+			char_pos = InStr(newString, chr(63))
+		Loop
+		
+		char_pos = InStr(newString, chr(64)) 'GOLBANGI
+    	Do While (char_pos > 0)
+			Mid(newString, char_pos, 1, "")
+			char_pos = InStr(newString, chr(64))
+		Loop
+		
+		char_pos = InStr(newString, Chr(34)) 'QUOTATION MARKS
+   		Do While (char_pos > 0)
+			Mid(newString, char_pos, 1, "")
+			char_pos = InStr(newString, Chr(34))
+		Loop
+		
+		
+		char_pos = InStr(newString, "–") 'Dashes
+   		Do While (char_pos > 0)
+			Mid(newString, char_pos, 1, " ")
+			char_pos = InStr(newString, "–")
+		Loop		
+		
+		char_pos = InStr(newString, "“") 'GOOFY QUOTES L
+    	Do While (char_pos > 0)
+			Mid(newString, char_pos, 1, " ")
+			char_pos = InStr(newString, "“")
+		Loop
+
+		char_pos = InStr(newString, "”") 'GOOFY QUOTES R
+    	Do While (char_pos > 0)
+			Mid(newString, char_pos, 1, " ")
+			char_pos = InStr(newString, "”")
+		Loop				
+				
+									
+		char_pos = InStr(newString, chr(10)) 'NEW LINE
+    	Do While (char_pos > 0)
+			Mid(newString, char_pos, 1, " ")
+			char_pos = InStr(newString, chr(10))
+		Loop
+		
+		char_pos = InStr(newString, "(") 'PARENTHESES
+    	Do While (char_pos > 0)
+			Mid(newString, char_pos, 1, "")
+			char_pos = InStr(newString, "(")
+		Loop
+		
+		char_pos = InStr(newString, ")") 'PARENTHESES
+    	Do While (char_pos > 0)
+			Mid(newString, char_pos, 1, " ")
+			char_pos = InStr(newString, ")")
+		Loop		
+		
+		char_pos = InStr(newString, chr(39)) 'APOSTROPHE
+		Do While (char_pos > 0)
+			Mid(newString, char_pos, 1, " ")
+			char_pos = InStr(newString, chr(39))
+		Loop
+		
+		char_pos = InStr(newString, "—") 'EM DASH
+		Do While (char_pos > 0)
+			Mid(newString, char_pos, 1, " ")
+			char_pos = InStr(newString, "—")
+		Loop	
+		
+		char_pos = InStr(newString, "‘") 'EM DASH
+		Do While (char_pos > 0)
+			Mid(newString, char_pos, 1, " ")
+			char_pos = InStr(newString, "‘")
+		Loop		
+		
+		char_pos = InStr(newString, "$") 'DOLLA DOLLA
+		Do While (char_pos > 0)
+			Mid(newString, char_pos, 1, " ")
+			char_pos = InStr(newString, "$")
+		Loop		
+		
+		char_pos = InStr(newString, "%") 'PERCENT
+		Do While (char_pos > 0)
+			Mid(newString, char_pos, 1, " ")
+			char_pos = InStr(newString, "%")
+		Loop		
+			
+		char_pos = InStr(newString, "&") 'AMPERSAND
+		Do While (char_pos > 0)
+			Mid(newString, char_pos, 1, " ")
+			char_pos = InStr(newString, "&")
+		Loop			
+		newString = Trim(newString)	
+
+End Sub
+
+
+Sub UndoContractions(newString, contractions_list(), full_forms_list(), contractions_list_size) 'Guts all the contractions in the passages and turns them into full forms
+	For i = 0 To contractions_list_size-1
+		token = contractions_list(i)
+		char_pos = InStr(newString, token) 'NEW LINE
+    	Do While (char_pos > 0)
+			Mid(newString, char_pos, Len(token), full_forms_list(i))
+			char_pos = InStr(newString, token)
+		Loop
+	Next i
+End Sub
+
+
+Sub Populate_New_Dict(stop_list(), stop_list_counter(), a(), b()) 'Puts all the words from the imitation passages into table "New_Dictionary"
+
+	Dim oTables, oTableDescriptor, oCols, oCol, table_name
+	
+	dbContext  = CreateUnoService("com.sun.star.sdb.DatabaseContext") 
+	dataSource = dbContext.getByName("TEPS")  ' This is an OOo 2.0 Base HSQL registered data source 
+	connection = dataSource.getConnection("", "")	
+	
+	oTables = connection.getTables()
+	
+	table_name = "New_Dictionary"
+	
+    oTableDescriptor = oTables.createDataDescriptor()
+    oTableDescriptor.Name = table_name
+
+    oCols = oTableDescriptor.getColumns()
+    oCol = oCols.createDataDescriptor()
+    oCol.Name = "ID"
+    oCol.Type = com.sun.star.sdbc.DataType.INTEGER
+    oCol.IsNullable = com.sun.star.sdbc.ColumnValue.NO_NULLS
+    oCol.IsAutoIncrement = True
+    oCol.Precision = 10
+    oCol.Description = "Primary Key"
+    oCols.appendByDescriptor(oCol)
+
+    oCol.Name = "Word"
+    oCol.Type = com.sun.star.sdbc.DataType.VARCHAR
+    oCol.Description = "Vocab Word"
+    oCol.Precision = 50
+    oCol.IsAutoIncrement = False
+    oCols.appendByDescriptor(oCol)
+    
+    oCol.Name = "Count"
+    oCol.Type = com.sun.star.sdbc.DataType.INTEGER
+    oCol.Precision = 10
+    oCol.IsNullable = com.sun.star.sdbc.ColumnValue.NULLABLE 
+    oCol.Description = "Counter"
+    oCols.appendByDescriptor(oCol)
+        
+    oTables.appendByDescriptor(oTableDescriptor)
+    
+    'oBar = ThisComponent.CurrentController.StatusIndicator 
+	'oBar.start("ShellSort Started...", 500)
+     
+    ShellSort(stop_list_counter(), stop_list())
+    
+    For i = 0 To stop_list_size-1
+       	oPrepStmt = connection.prepareStatement("insert into ""New_Dictionary"" ( ""ID"", ""Word"", ""Count"" ) values ( ?, ?, ? );")
+		oPrepStmt.setString(2, stop_list(i))
+		oPrepStmt.setInt(3, stop_list_counter(i))
+		oPrepStmt.execute()	
+	Next i
+    
+    ShellSort(b(), a())
+        
+    For i = 0 To word_list_size-1
+        oBar.Value = i / word_list_size
+  		oBar.Text = "Insert " & i & "of" & word_list_size
+    
+       	oPrepStmt = connection.prepareStatement("insert into ""New_Dictionary"" ( ""ID"", ""Word"", ""Count"" ) values ( ?, ?, ? );")
+		oPrepStmt.setString(2, a(i))
+		oPrepStmt.setInt(3, b(i))
+		oPrepStmt.execute()	
+    Next i
+    
+    oBar.Text = "Finished!"
+    
+    connection.dispose
+    
+End Sub
+
+
+Sub ShellSort(myList(), nameList()) 'Runs a sort based on dictionary "hits" and orders words in other array accordingly
+
+	Dim k1 As Long, k2 As Long, listSize As Long 
+	Dim x1 As Long, isSorted As Boolean 
+	Dim swapping, swapping2 
+
+	'oBar = ThisComponent.CurrentController.StatusIndicator 
+	'oBar.start("Started...", 100)
+
+	listSize = UBound(myList()) +1 -LBound(myList()) 
+	k1 = Fix(listSize /2) 
+	
+	counter = 0
+	
+	Do While k1 > 0 
+  		
+  		k2 = UBound(myList()) - k1 
+  		isSorted = true 
+  
+  		For x1 = LBound(myList()) to k2 
+  			
+    		If myList(x1) < myList(x1+k1)  Then 
+      			
+      			swapping = myList(x1) 
+      			myList(x1) = myList(x1+k1) 
+      			myList(x1+k1) = swapping 
+      			
+      			swapping2 = nameList(x1) 
+      			nameList(x1) = nameList(x1+k1) 
+      			nameList(x1+k1) = swapping2       			
+      			
+      			isSorted = false 
+    	
+    		End If
+    		
+  		Next 
+  
+  		counter = counter+1
+  		oBar.Text = counter & " Iterations. " & k1 & ":" & k2
+  
+  		If isSorted Then 
+    		k1 = Fix(k1 /2) 
+  		End If 
+  		
+  	Loop
+  	 
+End Sub
+
+
+Sub ShellSort2(myList()) 'Runs an alphabetical sort on words
+
+	Dim k1 As Long, k2 As Long, listSize As Long 
+	Dim x1 As Long, isSorted As Boolean 
+	Dim swapping 
+
+	'oBar = ThisComponent.CurrentController.StatusIndicator 
+	'oBar.start("Started...", 100)
+	'oBar.Text = "SHELLSORT: k1 = " & k1 & " x1 = " & x1
+
+	listSize = UBound(myList()) +1 -LBound(myList()) 
+	k1 = Fix(listSize /2) 
+
+	Do While k1 > 0 
+  		
+  		k2 = UBound(myList()) - k1 
+  		isSorted = true 
+  
+  		For x1 = LBound(myList()) to k2 
+    		If StrComp(myList(x1), myList(x1 +k1), 0) = 1  Then 
+      			swapping = myList(x1) 
+      			myList(x1) = myList(x1 +k1) 
+      			myList(x1 +k1) = swapping 
+      			isSorted = false
+      			'oBar.Text = "SHELLSORT: k1 = " & k1 & " x1 = " & x1
+    		End If 
+  		Next 
+  
+  		If isSorted Then 
+    		k1 = Fix(k1 /2) 
+  		End If 
+  	Loop
+  	 
+End Sub
+
+
+'''''''''POSSIBLY DEPRECATED''''''''''
+Sub DealWithWord(thisWord) 'Check if word is in new dictionary / stop list / wherever and increment hit counts
+	
+	i = 0
+	stop_list_flag = 0
+
+	If Len(thisWord) Then 'CHECK IF WORD IS IN DICTIONARY ARRAY ALREADY
+					
+		Do While (i < stop_list_size)
+			If (stop_list(i) = thisWord) Then
+				stop_list_counter(i) = stop_list_counter(i) + 1
+				stop_list_flag = 1
+				Exit Do
+			End If
+			i = i + 1
+		Loop
+					
+		If (stop_list_flag = 0) Then 'IF NOT ON STOP LIST
+			i = 0
+			Do While (i < word_list_size)
+				If a(i) = thisWord Then 'IF YES, ADD 1 TO COUNT.
+					b(i) = b(i) + 1
+					Exit Do
+				End If
+				i = i + 1
+			Loop
+						
+			If (i = word_list_size) Then 'IF NOT IN DICTIONARY, ADD AND MAKE COUNT = 1
+				a(i) = thisWord
+				b(i) = 1
+				word_list_size = word_list_size+1
+				temp_string = ""
+			End If
+					
+		End If
+					
+	End If
+	
+End Sub

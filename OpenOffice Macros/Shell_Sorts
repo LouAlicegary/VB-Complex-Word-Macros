@@ -1,0 +1,83 @@
+Sub ShellSort(myList(), nameList()) 'Runs a sort based on dictionary "hits" and orders words in other array accordingly
+
+	Dim k1 As Long, k2 As Long, listSize As Long 
+	Dim x1 As Long, isSorted As Boolean 
+	Dim swapping, swapping2 
+
+	'oBar = ThisComponent.CurrentController.StatusIndicator 
+	'oBar.start("Started...", 100)
+
+	listSize = UBound(myList()) +1 -LBound(myList()) 
+	k1 = Fix(listSize /2) 
+	
+	counter = 0
+	
+	Do While k1 > 0 
+  		
+  		k2 = UBound(myList()) - k1 
+  		isSorted = true 
+  
+  		For x1 = LBound(myList()) to k2 
+  			
+    		If myList(x1) < myList(x1+k1)  Then 
+      			
+      			swapping = myList(x1) 
+      			myList(x1) = myList(x1+k1) 
+      			myList(x1+k1) = swapping 
+      			
+      			swapping2 = nameList(x1) 
+      			nameList(x1) = nameList(x1+k1) 
+      			nameList(x1+k1) = swapping2       			
+      			
+      			isSorted = false 
+    	
+    		End If
+    		
+  		Next 
+  
+  		counter = counter+1
+  		oBar.Text = counter & " Iterations. " & k1 & ":" & k2
+  
+  		If isSorted Then 
+    		k1 = Fix(k1 /2) 
+  		End If 
+  		
+  	Loop
+  	 
+End Sub
+
+
+Sub ShellSort2(myList()) 'Runs an alphabetical sort on words
+
+	Dim k1 As Long, k2 As Long, listSize As Long 
+	Dim x1 As Long, isSorted As Boolean 
+	Dim swapping 
+
+	'oBar = ThisComponent.CurrentController.StatusIndicator 
+	'oBar.start("Started...", 100)
+	'oBar.Text = "SHELLSORT: k1 = " & k1 & " x1 = " & x1
+
+	listSize = UBound(myList()) +1 -LBound(myList()) 
+	k1 = Fix(listSize /2) 
+
+	Do While k1 > 0 
+  		
+  		k2 = UBound(myList()) - k1 
+  		isSorted = true 
+  
+  		For x1 = LBound(myList()) to k2 
+    		If StrComp(myList(x1), myList(x1 +k1), 0) = 1  Then 
+      			swapping = myList(x1) 
+      			myList(x1) = myList(x1 +k1) 
+      			myList(x1 +k1) = swapping 
+      			isSorted = false
+      			'oBar.Text = "SHELLSORT: k1 = " & k1 & " x1 = " & x1
+    		End If 
+  		Next 
+  
+  		If isSorted Then 
+    		k1 = Fix(k1 /2) 
+  		End If 
+  	Loop
+  	 
+End Sub
