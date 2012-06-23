@@ -1,0 +1,20 @@
+Microsoft Word and openOffice Macros
+====================================
+
+Portfolio Link: 
+
+http://loualicegary.com/wordpress/?p=13
+
+
+
+Description: 
+
+This repository contains a series of macros I've written as a part of my project management duties. The Microsoft Office macros are designed to traverse through a file that the writers have worked on, compute the lengths of the passages and answer choice blocks along with the overall difficulty level of the passage (based on the writer's scoring of individual elements), and dynamically create a chart that displays all of this data. The chart is color coded based on the length of each passage, its overall difficulty score, and whether or not the entire set is within our target goals or not.
+
+The OpenOffice macros I've included are used to take the same sort of files and rip the contents into an .odb Openoffice database. A database is created of word frequency, and one of the functions is even designed to use lemmas to group similar words together -- for example, counting instances of "happy," "happiest," and "happiness" as all permutations of the root word "happy." The database that these macros create of the passage information were used to seed the SQL databases used in the other work-related projects I've linked in my repository.
+
+
+
+Files Worth Peeking At:
+
+/demo.doc -- You can actually see one of the MS Word macros run for yourself here. It is an example "grammar question" file with 20 dummy passages in it. This particular test section doesn't involve difficulty levels, so that part of the macro / template has been removed. To run the macro, simply double-click on the "Update All Passage" link at the top of the first page (above the chart titled "Original Passages").
